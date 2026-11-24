@@ -1,0 +1,51 @@
+# Waynecorp
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: ridesync
+          MARIADB_USER: rs
+          MARIADB_PASSWORD: rs
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Lint PHP and JavaScript
+        run: |
+          for f in htdocs/*.php; do php -l "$f"; done
+          node --check htdocs/app.js
+          node --check htdocs/sw.js
+      - name: Create database and config (test values only)
+        run: |
+          mysql -h127.0.0.1 -urs -prs ridesync < database/schema.sql
+          cp htdocs/config.sample.php htdocs/config.php
+          sed -i "s/'localhost'/'127.0.0.1'/; s/your_database_name/ridesync/; s/your_database_user/rs/; s/your_database_password/rs/" htdocs/config.php
+      - name: Start app
+        run: |
+          php -S 127.0.0.1:8099 -t htdocs > /tmp/php.log 2>&1 &
+          sleep 3
+      - name: End-to-end tests
+        run: BASE_URL=http://127.0.0.1:8099 python3 tests/e2e.py

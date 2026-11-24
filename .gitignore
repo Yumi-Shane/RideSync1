@@ -1,0 +1,19 @@
+# Waynecorp
+htdocs/config.php
+.env
+.env.*
+
+*.sql
+!database/*.sql
+!database/migrations/*.sql
+
+*.zip
+*.log
+error_log
+php_errorlog
+*.bak
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+node_modules/
